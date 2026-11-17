@@ -601,3 +601,7 @@ main, .topbar { overflow-x: clip; }
 .medal[data-p="3"] { background: #F2A86B; }
 .medal b { position: absolute; bottom: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--paper); font-family: var(--f-en); font-size: 11px; display: grid; place-items: center; line-height: 1; }
 .medal .ic { stroke-width: 2; }
+
+.site-foot { position: relative; z-index: 1; text-align: center; direction: ltr; padding: 18px 16px 34px; font-family: var(--f-code); font-size: 14px; color: var(--ink2); }
+.site-foot a { font-family: var(--f-code); font-weight: 800; font-size: 15px; color: var(--ink); background: var(--cmp); border: 2.5px solid var(--ink); border-radius: 999px; padding: 2px 14px; margin-left: 4px; box-shadow: var(--sh-s); display: inline-block; transition: transform .15s, box-shadow .15s; }
+.site-foot a:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--ink); }

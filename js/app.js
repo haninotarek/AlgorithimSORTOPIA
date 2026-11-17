@@ -345,8 +345,7 @@ function renderHome() {
       <a class="btn dark" href="#/bank">ادخل اختبر نفسك</a>
       <span class="big-em">${ic('cap')}</span>
     </div>
-  </section>
-  <p class="foot">مبني على محاضرات ومراجعات مادة Algorithms Design &amp; Analysis · الأكواد <bdi>C++</bdi> زي المنهج بالظبط</p>`;
+  </section>`;
 
   $$('.acard').forEach(c => {
     const bars = $$('.mini-bars i', c);
