@@ -11,7 +11,7 @@ const store = {
   set(k, v) { try { localStorage.setItem('sortopia.' + k, JSON.stringify(v)); } catch (e) { } }
 };
 
-let LAB = null, HERO = null, RACE = null, PENDING = null;
+let LAB = null, HERO = null, RACE = null, PENDING = null, DECK = null;
 const SCORE = { ok: 0, no: 0 };
 const SPEEDS = [1700, 1150, 780, 480, 240, 90];
 
@@ -77,12 +77,17 @@ function buildSky() {
 function buildNav() {
   $('#nav').innerHTML = `
     <a href="#/" data-r="home">${ic('home')} الرئيسية</a>
-    <span class="sep"></span>
-    ${ALGOS.map(a => `<a class="dot" href="#/algo/${a.id}" data-r="${a.id}" data-tip="${a.en}" style="--dc:${a.color}">${ic(a.icon)}</a>`).join('')}
-    <span class="sep"></span>
-    <a href="#/bank" data-r="bank">${ic('quiz')} بنك الأسئلة</a>
+    <div class="dd" id="dd">
+      <button class="dd-btn" id="ddBtn" data-r="algo" aria-expanded="false">${ic('blocks')} الخوارزميات ${ic('chev-down', 'chev')}</button>
+      <div class="dd-menu">
+        ${ALGOS.map((a, i) => `<a href="#/algo/${a.id}" data-r="${a.id}" style="--dc:${a.color}"><span class="dd-ic">${ic(a.icon)}</span><span class="dd-txt"><b>${a.en}</b><small>${i + 1} · خوارزمية ${a.ar}</small></span></a>`).join('')}
+      </div>
+    </div>
+    <a href="#/bank" data-r="bank">${ic('quiz')} الأسئلة</a>
     <a href="#/race" data-r="race">${ic('flag')} السباق</a>
     <button id="sndBtn" title="الصوت">${ic(Sound.on ? 'vol' : 'mute')}</button>`;
+  $('#ddBtn').onclick = e => { e.stopPropagation(); toggleDD(); };
+  document.addEventListener('click', e => { if (!e.target.closest('#dd')) toggleDD(false); });
   $('#sndBtn').onclick = () => {
     Sound.on = !Sound.on; store.set('sound', Sound.on);
     $('#sndBtn').innerHTML = ic(Sound.on ? 'vol' : 'mute');
@@ -90,7 +95,16 @@ function buildNav() {
     Sound.ok();
   };
 }
-function setNav(r) { $$('#nav [data-r]').forEach(a => a.classList.toggle('on', a.dataset.r === r)); }
+function setNav(r) {
+  $$('#nav [data-r]').forEach(a => a.classList.toggle('on', a.dataset.r === r || (a.dataset.r === 'algo' && !!BY[r])));
+  toggleDD(false);
+}
+function toggleDD(force) {
+  const dd = $('#dd');
+  const open = force === undefined ? !dd.classList.contains('open') : force;
+  dd.classList.toggle('open', open);
+  $('#ddBtn').setAttribute('aria-expanded', open);
+}
 
 /* ================= C++ CODE ================= */
 function parseCode(src, arr) {
@@ -261,11 +275,13 @@ function stopAll() {
   LAB = HERO = RACE = null;
 }
 function route() {
-  stopAll();
   const parts = (location.hash.slice(1) || '/').split('/');
+  if (parts[1] === 'algo' && LAB && LAB.id === parts[2] && $('#tabs')) { showTab(parts[3]); return; }
+  stopAll();
+  DECK = null;
   app.className = '';
   app.style.removeProperty('--c'); app.style.removeProperty('--cd');
-  if (parts[1] === 'algo' && BY[parts[2]]) { renderAlgo(parts[2]); setNav(parts[2]); }
+  if (parts[1] === 'algo' && BY[parts[2]]) { renderAlgo(parts[2], parts[3]); setNav(parts[2]); }
   else if (parts[1] === 'bank') { renderBank(); setNav('bank'); }
   else if (parts[1] === 'race') { renderRace(); setNav('race'); }
   else { renderHome(); setNav('home'); }
@@ -302,6 +318,12 @@ function renderHome() {
       <span class="hv-sticker s2">O(n log n)</span>
       <span class="hv-sticker s3">i++</span>
     </div>
+  </section>
+
+  <section class="howto">
+    <div class="hstep"><b>1</b><span><strong>اختار خوارزمية</strong><small>من الكروت اللي تحت، أو من قايمة «الخوارزميات» فوق</small></span></div>
+    <div class="hstep"><b>2</b><span><strong>افهم وشوفها بتشتغل</strong><small>الفكرة الأول، وبعدين الكود خطوة بخطوة بزرار «التالي»</small></span></div>
+    <div class="hstep"><b>3</b><span><strong>حل الأسئلة</strong><small>سؤال سؤال بالأسهم، والإجابة والشرح بيظهروا على طول</small></span></div>
   </section>
 
   <section>
@@ -389,13 +411,21 @@ const LEGENDS = {
 };
 const KIND = { cmp: 'مقارنة', swap: 'تحريك', done: 'خلصنا' };
 
-function renderAlgo(id) {
+const TABS = [
+  { id: 'learn', title: 'الفكرة', sub: 'الحكاية والخطوات', icon: 'book' },
+  { id: 'lab', title: 'شوفها بتشتغل', sub: 'الكود خطوة بخطوة', icon: 'flask' },
+  { id: 'quiz', title: 'الأسئلة', sub: 'سؤال سؤال', icon: 'quiz' }
+];
+const RECURSIVE = ['merge', 'quick', 'heap'];
+
+function renderAlgo(id, tab) {
   const a = BY[id], i = ALGOS.indexOf(a);
   const prevA = ALGOS[(i + 5) % 6], nextA = ALGOS[(i + 1) % 6];
   app.style.setProperty('--c', a.color); app.style.setProperty('--cd', a.deep);
   const cx = a.cx;
+  const nextTabBtn = (t, txt) => `<div class="pane-next"><a class="btn big" href="#/algo/${id}/${t}">${txt} ${ic('arrow-left')}</a></div>`;
   app.innerHTML = `
-  <section class="algo-hero">
+  <section class="algo-hero slim">
     <div class="ah-main">
       <div class="ah-emoji">${ic(a.icon)}</div>
       <div>
@@ -413,91 +443,102 @@ function renderAlgo(id) {
       <div class="cx"><small>Paradigm</small><b style="font-size:13px">${cx.paradigm}</b></div>
     </div>
   </section>
-  <div class="ah-pager">
-    <div class="jump"><a class="btn sm ghost" href="#story" data-j>${ic('book')} الحكاية</a><a class="btn sm ghost" href="#lab" data-j>${ic('flask')} المعمل</a><a class="btn sm ghost" href="#practice" data-j>${ic('quiz')} اختبر نفسك</a></div>
-    <div class="jump"><a class="btn sm ghost" href="#/algo/${prevA.id}">→ ${ic(prevA.icon)} ${prevA.en}</a><a class="btn sm" href="#/algo/${nextA.id}">${nextA.en} ${ic(nextA.icon)} ←</a></div>
+
+  <nav class="stabs" id="tabs">
+    ${TABS.map((t, k) => `<a class="stab" data-t="${t.id}" href="#/algo/${id}/${t.id}"><b>${k + 1}</b><span><strong>${ic(t.icon)} ${t.title}</strong><small>${t.sub}</small></span></a>`).join('')}
+  </nav>
+
+  <div class="pane" data-pane="learn">
+    <section class="card story">
+      <div>
+        <h2 class="sec">${hi('book')}الفكرة ببساطة</h2>
+        <p class="story-txt">${icx(a.story)}</p>
+        <ol class="steps-list">${a.steps.map(s => `<li>${icx(s)}</li>`).join('')}</ol>
+      </div>
+      <div class="tips"><h3>${ic('eye')} خلي بالك في الامتحان</h3><ul>${a.tips.map(t => `<li>${icx(t)}</li>`).join('')}</ul></div>
+    </section>
+    ${nextTabBtn('lab', 'فهمت — وريني بتشتغل ازاي')}
   </div>
 
-  <section class="card story" id="story">
-    <div>
-      <h2 class="sec">${hi('book')}الحكاية</h2>
-      <p class="story-txt">${icx(a.story)}</p>
-      <ol class="steps-list">${a.steps.map(s => `<li>${icx(s)}</li>`).join('')}</ol>
-    </div>
-    <div class="tips"><h3>${ic('eye')} خلي بالك</h3><ul>${a.tips.map(t => `<li>${icx(t)}</li>`).join('')}</ul></div>
-  </section>
+  <div class="pane" data-pane="lab">
+    <section class="card lab" id="lab">
+      <p class="lab-intro">${ic('bulb')} دوس <b>التالي</b> عشان تمشي مع الكود خطوة بخطوة — أو <b>تشغيل</b> وهو يمشي لوحده. الشرح بيظهر في الفقاعة تحت الرسمة.</p>
+      <div class="lab-tools">
+        <span class="arr-show">الأرقام: <b id="arrShow"></b></span>
+        <button class="btn sm ghost" id="rndBtn">${ic('dice')} أرقام عشوائية</button>
+        <button class="btn sm ghost" id="editBtn">${ic('pencil')} اكتب أرقامك</button>
+        <button class="btn sm ghost" id="defBtn">${ic('reset')} مثال المادة</button>
+        ${id === 'bubble' ? `<div class="seg" id="varSeg"><button data-v="basic" class="on">كود المادة</button><button data-v="opt">Optimized</button></div>` : ''}
+        <button class="btn sm ghost" id="chalBtn" title="بيسألك قبل كل مقارنة">${ic('target')} وضع التحدي</button>
+        <span class="chal-score" id="chalScore" hidden></span>
+      </div>
+      <div class="arr-edit" id="arrEdit" hidden>
+        <input class="arr-in" id="arrIn" spellcheck="false" aria-label="الأرقام" placeholder="مثلاً: 5, 1, 4, 2, 8">
+        <button class="btn sm" id="runBtn">${ic('check')} تمام</button>
+        <small>من 2 لـ 10 أرقام، وبينهم comma</small>
+      </div>
+      <div class="stack-bar" id="stack"${RECURSIVE.includes(id) ? '' : ' hidden'}></div>
+      <div class="stage-box">
+        ${id === 'heap' ? '<div id="tree"></div>' : ''}
+        <div id="stage"></div>
+        <div class="aux" id="aux"></div>
+      </div>
+      <div class="narrator">
+        <div class="nar-av" id="narAv">${ic(a.icon)}</div>
+        <div class="nar-bubble" id="nar"></div>
+      </div>
+      <div class="controls2">
+        <button class="cbtn" id="cPrev">${ic('next')} السابق</button>
+        <button class="cbtn play" id="cPlay"></button>
+        <button class="cbtn primary" id="cNext">التالي ${ic('prev')}</button>
+      </div>
+      <div class="controls-sub">
+        <button class="btn sm ghost" id="cFirst">${ic('reset')} من الأول</button>
+        <div class="scrub"><div class="cnt"><span id="cCnt"></span></div><input type="range" id="cRange" min="0" value="0" aria-label="الخطوة"></div>
+        <div class="speed">السرعة <input type="range" id="cSpeed" min="0" max="5" aria-label="السرعة"></div>
+      </div>
+      <div class="legend">${LEGENDS[id].map(([v, t]) => `<span><i style="background:var(${v})"></i>${t}</span>`).join('')}</div>
+      <div class="lab-grid">
+        <div class="code-panel">
+          <div class="code-head"><span class="dots"><i></i><i></i><i></i></span>${id}.cpp<span class="sp"></span><button id="copyBtn">copy</button></div>
+          <div class="code" id="code"></div>
+        </div>
+        <div class="side">
+          <div class="panel"><h4>${ic('braces')} المتغيرات دلوقتي</h4><div class="vars" id="vars"></div></div>
+          <div class="panel"><h4>${ic('table')} جدول التريسنج</h4><div class="log-wrap" id="log"></div></div>
+          <div class="term" id="term"></div>
+        </div>
+      </div>
+    </section>
+    ${nextTabBtn('quiz', 'يلا نحل أسئلة')}
+  </div>
 
-  <section class="card lab" id="lab">
-    <div class="lab-head">
-      <h2 class="sec">${hi('flask')}المعمل <small>الكود بيتنفّذ سطر سطر</small></h2>
-      <div class="in-row">
-        <input class="arr-in" id="arrIn" spellcheck="false" aria-label="array">
-        <button class="btn sm" id="runBtn">شغّل ▶</button>
-        <button class="btn sm ghost" id="rndBtn" title="array عشوائية">${ic('dice')}</button>
-        <button class="btn sm ghost" id="defBtn" title="مثال المادة">${ic('book')} مثال المادة</button>
-      </div>
-    </div>
-    <div class="toggles" style="margin-top:12px">
-      ${id === 'bubble' ? `<div class="seg" id="varSeg"><button data-v="basic" class="on">كود AllCode</button><button data-v="opt">Optimized (swapped flag)</button></div>` : ''}
-      <button class="btn sm ghost" id="chalBtn">${ic('target')} وضع التحدي</button>
-      <span class="chal-score" id="chalScore" hidden></span>
-    </div>
-    <div class="stack-bar" id="stack"></div>
-    <div class="stage-box">
-      ${id === 'heap' ? '<div id="tree"></div>' : ''}
-      <div id="stage"></div>
-      <div class="aux" id="aux"></div>
-    </div>
-    <div class="narrator">
-      <div class="nar-av" id="narAv">${ic(a.icon)}</div>
-      <div class="nar-bubble" id="nar"></div>
-    </div>
-    <div class="controls">
-      <button class="ctl" id="cFirst" title="البداية">${ic('first')}</button>
-      <button class="ctl" id="cPrev" title="خطوة لورا">${ic('prev')}</button>
-      <button class="ctl play" id="cPlay" title="تشغيل">${ic('play')}</button>
-      <button class="ctl" id="cNext" title="خطوة لقدام">${ic('next')}</button>
-      <button class="ctl" id="cLast" title="النهاية">${ic('last')}</button>
-      <div class="scrub"><div class="cnt"><span id="cCnt"></span><span id="cTag"></span></div><input type="range" id="cRange" min="0" value="0"></div>
-      <div class="speed">${ic('slow')}<input type="range" id="cSpeed" min="0" max="5">${ic('fast')}</div>
-    </div>
-    <div class="legend">${LEGENDS[id].map(([v, t]) => `<span><i style="background:var(${v})"></i>${t}</span>`).join('')}</div>
-    <div class="hint"><span class="kbd">Space</span> تشغيل/وقف <span class="kbd">→</span> <span class="kbd">←</span> خطوة · دوسي على أي صف في جدول التريسنج يرجعك للخطوة دي</div>
-    <div class="lab-grid">
-      <div class="code-panel">
-        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span>${id}.cpp<span class="sp"></span><button id="copyBtn">copy</button></div>
-        <div class="code" id="code"></div>
-      </div>
-      <div class="side">
-        <div class="panel"><h4>${ic('braces')} المتغيرات</h4><div class="vars" id="vars"></div></div>
-        <div class="panel"><h4>${ic('table')} جدول التريسنج</h4><div class="log-wrap" id="log"></div></div>
-        <div class="term" id="term"></div>
-      </div>
-    </div>
-  </section>
+  <div class="pane" data-pane="quiz">
+    <section class="card" id="practice">
+      <h2 class="sec">${hi('quiz')}أسئلة ${a.en} <small>سؤال واحد كل مرة — استخدم الأسهم عشان تتنقل</small></h2>
+      <div id="qs"></div>
+    </section>
+    <section class="card" id="tgen"></section>
+  </div>
 
-  <section class="card" id="practice">
-    <h2 class="sec">${hi('quiz')}اختبر نفسك <small>أسئلة البنك والكويز الخاصة بـ ${a.en} + تحدي تريسنج</small></h2>
-    <div id="tgen"></div>
-    <div class="qgrid" id="qs"></div>
-  </section>
-  <div class="ah-pager" style="margin-top:28px">
-    <a class="btn ghost" href="#/algo/${prevA.id}">→ ${ic(prevA.icon)} ${prevA.en}</a>
-    <a class="btn" href="#/algo/${nextA.id}" style="--c:${nextA.color}">الخوارزمية اللي بعدها: ${nextA.en} ${ic(nextA.icon)} ←</a>
+  <div class="ah-pager bottom">
+    <a class="btn ghost" href="#/algo/${prevA.id}">${ic('next')} ${prevA.en}</a>
+    <a class="btn" href="#/algo/${nextA.id}" style="--c:${nextA.color}">الخوارزمية اللي بعدها: ${nextA.en} ${ic('prev')}</a>
   </div>`;
-
-  $$('[data-j]').forEach(b => b.onclick = e => { e.preventDefault(); $(b.getAttribute('href')).scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 
   const stage = new Stage($('#stage'), { bounds: id === 'merge' || id === 'quick' });
   const tree = id === 'heap' ? new Tree($('#tree')) : null;
   LAB = { a, id, variant: 'basic', stage, tree, idx: 0, playing: false, timer: null, speed: store.get('speed', 2), challenge: false, answered: {}, sc: { ok: 0, n: 0 }, lastVars: {}, nlogs: -1 };
   $('#cSpeed').value = LAB.speed;
+  pause();
 
   const start = PENDING && PENDING.id === id ? PENDING.arr : a.arr;
+  if (PENDING && PENDING.id === id) tab = 'lab';
   PENDING = null;
   loadRun(start);
 
-  $('#runBtn').onclick = () => { const arr = parseArr($('#arrIn').value); if (arr) loadRun(arr); };
+  $('#editBtn').onclick = () => { const e = $('#arrEdit'); e.hidden = !e.hidden; if (!e.hidden) $('#arrIn').focus(); };
+  $('#runBtn').onclick = () => { const arr = parseArr($('#arrIn').value); if (arr) { loadRun(arr); $('#arrEdit').hidden = true; } };
   $('#arrIn').onkeydown = e => { if (e.key === 'Enter') $('#runBtn').click(); };
   $('#rndBtn').onclick = () => loadRun(Array.from({ length: id === 'merge' ? 7 : 6 }, () => rand(1, 99)));
   $('#defBtn').onclick = () => loadRun(a.arr);
@@ -510,11 +551,10 @@ function renderAlgo(id) {
     $('#chalBtn').classList.toggle('on', LAB.challenge);
     $('#chalScore').hidden = !LAB.challenge;
     updScore();
-    toast(LAB.challenge ? 'وضع التحدي: هسألك قبل كل قرار — توقّعي الصح!' : 'وضع التحدي اتقفل');
+    toast(LAB.challenge ? 'وضع التحدي: هسألك قبل كل مقارنة — توقّع الصح!' : 'وضع التحدي اتقفل');
     renderStep(false);
   };
   $('#cFirst').onclick = () => { pause(); go(0, false); };
-  $('#cLast').onclick = () => { pause(); go(LAB.res.steps.length - 1, true); };
   $('#cPrev').onclick = () => { pause(); go(LAB.idx - 1, false); };
   $('#cNext').onclick = () => { pause(); next(); };
   $('#cPlay').onclick = () => LAB.playing ? pause() : play();
@@ -525,15 +565,27 @@ function renderAlgo(id) {
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast(ic('check') + ' الكود اتنسخ'), () => toast('مقدرتش أنسخ'));
   };
 
+  quizDeck($('#qs'), BANK.filter(q => q.top.includes(id)));
   traceGen($('#tgen'), id);
-  renderQs($('#qs'), BANK.filter(q => q.top.includes(id)));
+  showTab(tab, true);
+}
+
+function showTab(t, first) {
+  if (!TABS.some(x => x.id === t)) t = 'learn';
+  pause();
+  $$('#tabs .stab').forEach(a => a.classList.toggle('on', a.dataset.t === t));
+  $$('.pane').forEach(p => { p.hidden = p.dataset.pane !== t; });
+  const pane = $(`.pane[data-pane="${t}"]`);
+  pane.classList.remove('pane-in'); void pane.offsetWidth; pane.classList.add('pane-in');
+  if (t === 'lab' && LAB) { LAB.stage.measure(); if (LAB.tree) LAB.tree.measure(); renderStep(false); }
+  if (!first) $('#tabs').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function parseArr(s) {
   const parts = s.split(/[\s,،;]+/).filter(Boolean);
   const arr = parts.map(Number);
   const bad = msg => { toast(msg); const el = $('#arrIn'); el.classList.remove('bad'); void el.offsetWidth; el.classList.add('bad'); return null; };
-  if (arr.some(x => !Number.isInteger(x))) return bad('اكتبي أرقام صحيحة بس، مفصولة بـ comma');
+  if (arr.some(x => !Number.isInteger(x))) return bad('اكتب أرقام صحيحة بس، وبينهم comma');
   if (arr.length < 2 || arr.length > 10) return bad('من 2 لـ 10 أرقام عشان الرسمة تبان حلوة');
   if (arr.some(x => x < -99 || x > 999)) return bad('الأرقام من -99 لـ 999');
   return arr;
@@ -544,6 +596,7 @@ function loadRun(arr) {
   const L = LAB;
   L.arr = arr.slice();
   $('#arrIn').value = arr.join(', ');
+  $('#arrShow').textContent = arr.join(', ');
   L.res = trace(L.id, arr, L.variant);
   const key = L.id === 'bubble' && L.variant === 'opt' ? 'bubbleOpt' : L.id;
   L.code = parseCode(CODES[key], arr);
@@ -566,7 +619,7 @@ function go(i, animate = true) {
 function next() {
   const L = LAB, s = L.res.steps[L.idx];
   if (L.challenge && s.q && L.answered[L.idx] === undefined) {
-    toast('جاوبي على السؤال الأول');
+    toast('جاوب على السؤال الأول');
     const b = $('#nar'); b.classList.remove('shake'); b.style.animation = 'none'; void b.offsetWidth; b.style.animation = 'shake .4s';
     return false;
   }
@@ -577,7 +630,7 @@ function next() {
 function play() {
   const L = LAB;
   if (L.idx >= L.res.steps.length - 1) go(0, false);
-  L.playing = true; $('#cPlay').innerHTML = ic('pause');
+  L.playing = true; $('#cPlay').innerHTML = ic('pause') + ' إيقاف';
   const tick = () => {
     if (!LAB || !L.playing) return;
     const s = L.res.steps[L.idx];
@@ -590,7 +643,7 @@ function play() {
 function pause() {
   if (!LAB) return;
   LAB.playing = false; clearTimeout(LAB.timer);
-  const b = $('#cPlay'); if (b) b.innerHTML = ic('play');
+  const b = $('#cPlay'); if (b) b.innerHTML = ic('play') + ' تشغيل';
 }
 function updScore() {
   const el = $('#chalScore');
@@ -639,7 +692,6 @@ function renderStep(animate) {
 
   const r = $('#cRange'); r.value = L.idx; r.style.setProperty('--p', (L.idx / Math.max(1, N - 1) * 100) + '%');
   $('#cCnt').textContent = `خطوة ${L.idx + 1} / ${N}`;
-  $('#cTag').textContent = s.tags.join(' · ');
 
   if (animate) {
     if (s.kind === 'cmp') Sound.cmp(s.tiles[(s.marks.cmp || [0])[0]] ? s.tiles[(s.marks.cmp || [0])[0]].v : 40);
@@ -665,7 +717,7 @@ function renderNarr() {
     let fb = '';
     if (L.challenge && s.q && L.answered[L.idx] !== undefined) {
       const ok = L.answered[L.idx] === s.q.ans;
-      fb = `<div class="fb ${ok ? 'ok' : 'no'}">${ok ? ic('check') + ' برافو! توقّع صح' : ic('x') + ' لأ المرة دي، بصي ليه:'}</div>`;
+      fb = `<div class="fb ${ok ? 'ok' : 'no'}">${ok ? ic('check') + ' برافو! توقّع صح' : ic('x') + ' لأ المرة دي، بص ليه:'}</div>`;
     }
     box.innerHTML = meta + `<div class="msg">${fb}${icx(s.msg)}</div>`;
   }
@@ -678,12 +730,81 @@ function bumpScore(ok) {
   ok ? Sound.ok() : Sound.bad();
   if ($('#sOk')) { $('#sOk').innerHTML = ic('check') + ' ' + SCORE.ok; $('#sNo').innerHTML = ic('x') + ' ' + SCORE.no; }
 }
-function renderQs(box, items) {
-  box.innerHTML = '';
-  items.forEach(it => box.appendChild(qCard(it)));
-  if (!items.length) box.innerHTML = '<p class="log-empty">مفيش أسئلة بالفلتر ده</p>';
+function quizDeck(box, items) {
+  if (!items.length) { box.innerHTML = '<p class="log-empty">مفيش أسئلة بالاختيار ده</p>'; DECK = null; return; }
+  const res = items.map(() => null);
+  let i = 0;
+  box.innerHTML = `<div class="deck">
+    <div class="deck-top">
+      <span class="deck-count"></span>
+      <div class="deck-bar"><i></i></div>
+      <span class="deck-score"></span>
+    </div>
+    <div class="deck-stage"></div>
+    <div class="deck-nav">
+      <button class="cbtn" data-d="-1">${ic('next')} السابق</button>
+      <div class="deck-dots"></div>
+      <button class="cbtn primary" data-d="1"></button>
+    </div>
+  </div>`;
+  const stageEl = $('.deck-stage', box);
+  const cards = items.map((it, k) => {
+    const c = qCard(it, ok => { if (res[k] === null || ok !== null) res[k] = ok === null ? 'seen' : ok ? 'ok' : 'no'; paint(); });
+    c.hidden = true; stageEl.appendChild(c); return c;
+  });
+  const sum = document.createElement('div');
+  sum.className = 'q deck-sum'; sum.hidden = true; stageEl.appendChild(sum);
+  const dots = $('.deck-dots', box);
+  const many = items.length > 24;
+  dots.innerHTML = many ? '' : items.map((_, k) => `<button data-k="${k}" aria-label="سؤال ${k + 1}"></button>`).join('');
+  $$('button', dots).forEach(b => b.onclick = () => show(+b.dataset.k));
+  const [prevB, nextB] = $$('.deck-nav > .cbtn', box);
+  prevB.onclick = () => step(-1);
+  nextB.onclick = () => step(1);
+
+  function paint() {
+    const ok = res.filter(r => r === 'ok').length, no = res.filter(r => r === 'no').length;
+    $('.deck-count', box).textContent = i < items.length ? `سؤال ${i + 1} من ${items.length}` : 'النتيجة';
+    $('.deck-bar i', box).style.width = (Math.min(i + 1, items.length) / items.length * 100) + '%';
+    $('.deck-score', box).innerHTML = `${ic('check')} ${ok} <span class="sep-dot"></span> ${ic('x')} ${no}`;
+    $$('button', dots).forEach((b, k) => { b.className = (res[k] || '') + (k === i ? ' cur' : ''); });
+    prevB.disabled = i === 0;
+    nextB.innerHTML = i >= items.length - 1 ? (i === items.length ? `${ic('reset')} من الأول` : `النتيجة ${ic('prev')}`) : `التالي ${ic('prev')}`;
+  }
+  function show(k, dir = 1) {
+    i = Math.max(0, Math.min(items.length, k));
+    cards.forEach((c, n) => { c.hidden = n !== i; });
+    sum.hidden = i !== items.length;
+    const cur = i === items.length ? sum : cards[i];
+    if (i === items.length) summary();
+    cur.classList.remove('slide-f', 'slide-b'); void cur.offsetWidth; cur.classList.add(dir > 0 ? 'slide-f' : 'slide-b');
+    paint();
+  }
+  function step(d) {
+    if (d > 0 && i === items.length) { quizDeck(box, items); return; }
+    show(i + d, d);
+  }
+  function summary() {
+    const ok = res.filter(r => r === 'ok').length, no = res.filter(r => r === 'no').length;
+    const graded = items.filter((it, k) => it.t === 'mcq' || it.t === 'tf').length;
+    const skipped = res.filter(r => r === null).length;
+    const wrong = items.filter((_, k) => res[k] === 'no');
+    sum.innerHTML = `<div class="sum-icon">${ic('trophy')}</div>
+      <h3>خلصت الأسئلة!</h3>
+      <p class="sum-big">${ok} <small>صح من</small> ${ok + no}</p>
+      <p class="sum-note">${skipped ? `فاضل ${skipped} سؤال من غير إجابة — تقدر ترجعلهم بالأسهم.` : 'جاوبت على كل الأسئلة.'}</p>
+      <div class="sum-btns">
+        ${wrong.length ? `<button class="btn" id="sumWrong">${ic('reset')} راجع الـ ${wrong.length} الغلط بس</button>` : ''}
+        <button class="btn ghost" id="sumAll">${ic('reset')} ابدأ من الأول</button>
+      </div>`;
+    if (ok && ok === ok + no && graded) confetti();
+    if ($('#sumWrong', sum)) $('#sumWrong', sum).onclick = () => quizDeck(box, wrong);
+    $('#sumAll', sum).onclick = () => quizDeck(box, items);
+  }
+  DECK = { step, visible: () => !!box.offsetParent };
+  show(0);
 }
-function qCard(it) {
+function qCard(it, onAns = () => {}) {
   const el = document.createElement('div');
   el.className = 'q';
   const typ = { mcq: 'اختيار من متعدد', tf: 'صح ولا غلط', essay: 'مقالي', fill: 'أكمل الكود' }[it.t];
@@ -705,13 +826,13 @@ function qCard(it) {
       if (!ok) b.classList.add('no');
       el.classList.add(ok ? 'right' : 'wrong');
       if (ok) confetti(18);
-      bumpScore(ok); why();
+      bumpScore(ok); why(); onAns(ok);
     });
   } else if (it.t === 'essay') {
     const b = document.createElement('button');
     b.className = 'btn sm ghost'; b.style.marginTop = '10px'; b.innerHTML = ic('eye') + ' اظهر الإجابة';
     const ans = document.createElement('div'); ans.className = 'ans'; ans.innerHTML = icx(it.ans); ans.hidden = true;
-    b.onclick = () => { ans.hidden = !ans.hidden; b.innerHTML = ans.hidden ? ic('eye') + ' اظهر الإجابة' : ic('eye-off') + ' اخفي الإجابة'; };
+    b.onclick = () => { ans.hidden = !ans.hidden; if (!ans.hidden) onAns(null); b.innerHTML = ans.hidden ? ic('eye') + ' اظهر الإجابة' : ic('eye-off') + ' اخفي الإجابة'; };
     el.append(b, ans);
   } else if (it.t === 'fill') {
     const code = document.createElement('div'); code.className = 'fill-code';
@@ -720,14 +841,15 @@ function qCard(it) {
       return m ? `<input data-a="${esc(m[1])}" size="${m[1].length + 1}" spellcheck="false">` : hl(seg);
     }).join('');
     const row = document.createElement('div'); row.className = 'tf-row';
-    row.innerHTML = '<button class="btn sm">' + ic('check') + ' صحّحي</button><button class="btn sm ghost">اظهر الحل</button>';
+    row.innerHTML = '<button class="btn sm">' + ic('check') + ' صحّح</button><button class="btn sm ghost">اظهر الحل</button>';
     const norm = s => s.replace(/\s+/g, '').replace(/^--j$|^j-=1$|^j=j-1$/, 'j--');
     row.children[0].onclick = () => {
       let good = 0; const ins = $$('input', code);
       ins.forEach(x => { const ok = norm(x.value) === norm(x.dataset.a); x.className = ok ? 'ok' : 'no'; if (ok) good++; });
       const all = good === ins.length;
-      toast(all ? ic('sparkles') + ' كله صح!' : `${good} من ${ins.length} صح — حاولي تاني`);
+      toast(all ? ic('sparkles') + ' كله صح!' : `${good} من ${ins.length} صح — حاول تاني`);
       if (all) { confetti(); Sound.win(); } else Sound.bad();
+      onAns(all);
     };
     row.children[1].onclick = () => $$('input', code).forEach(x => { x.value = x.dataset.a; x.className = 'ok'; });
     el.append(code, row);
@@ -759,20 +881,20 @@ function traceGen(box, fixedId) {
     const what = g.label === 'Max Heap' ? 'بناء الـ Max Heap' : `<code>${esc(g.label)}</code>`;
     $('#tgBody', box).innerHTML = `<p class="tq">${ic(a.icon)} <b>${a.en}</b> على ${marr(arr)} — إيه شكل الـ array بعد ${what}؟</p>
       <div class="topts">${opts.map(o => `<button class="topt" data-k="${key(o)}">${marr(o)}</button>`).join('')}</div>
-      <div class="tfoot"><button class="btn sm" id="tgNew">${ic('dice')} سؤال تاني</button><button class="btn sm ghost" id="tgLab">${ic('flask')} افتحيه في المعمل</button><span id="tgMsg"></span></div>`;
+      <div class="tfoot"><button class="btn sm" id="tgNew">${ic('dice')} سؤال تاني</button><button class="btn sm ghost" id="tgLab">${ic('flask')} شوفه خطوة بخطوة</button><span id="tgMsg"></span></div>`;
     $$('.topt', box).forEach(b => b.onclick = () => {
       const ok = b.dataset.k === right;
       $$('.topt', box).forEach(x => { x.disabled = true; if (x.dataset.k === right) x.classList.add('ok'); });
       if (!ok) b.classList.add('no'); else confetti(30);
       bumpScore(ok);
-      $('#tgMsg', box).innerHTML = ok ? ic('check') + ' مظبوط!' : ic('x') + ' مش دي — افتحيها في المعمل وشوفي الخطوات';
+      $('#tgMsg', box).innerHTML = ok ? ic('check') + ' مظبوط!' : ic('x') + ' مش دي — دوس «شوفه خطوة بخطوة» عشان تفهم ليه';
     });
     $('#tgNew', box).onclick = make;
     $('#tgLab', box).onclick = () => {
       if (LAB && LAB.id === cur) {
         if (LAB.variant !== 'basic' && $('#varSeg')) $('#varSeg button[data-v=basic]').click();
-        loadRun(arr); $('#lab').scrollIntoView({ behavior: 'smooth' });
-      } else { PENDING = { id: cur, arr }; location.hash = '#/algo/' + cur; }
+        loadRun(arr); location.hash = '#/algo/' + cur + '/lab';
+      } else { PENDING = { id: cur, arr }; location.hash = '#/algo/' + cur + '/lab'; }
     };
   };
   make();
@@ -782,27 +904,23 @@ function traceGen(box, fixedId) {
 function renderBank() {
   app.innerHTML = `
   <section class="card">
-    <h2 class="sec">${hi('quiz')}بنك الأسئلة <small>بنك الأسئلة + كويز 2 + أسئلة إضافية — كله بالإجابة والشرح</small></h2>
-    <div class="scoreboard" style="margin-top:10px">
-      <span class="score-pill" id="sOk" style="background:var(--part)">${ic('check')} ${SCORE.ok}</span>
-      <span class="score-pill" id="sNo" style="background:#FFD1DF">${ic('x')} ${SCORE.no}</span>
-      <button class="btn sm ghost" id="resetQ">${ic('reset')} ابدأ من الأول</button>
-    </div>
-    <div class="filters" id="fType">
-      ${[['all', 'الكل'], ['mcq', 'اختيار من متعدد'], ['tf', 'صح ولا غلط'], ['essay', 'مقالي وتريسنج'], ['fill', 'أكمل الكود']].map(([k, t], i) => `<button class="fchip${i ? '' : ' on'}" data-k="${k}">${t}</button>`).join('')}
-    </div>
+    <h2 class="sec">${hi('quiz')}الأسئلة <small>بنك الأسئلة + كويز 2 + أسئلة زيادة — بالإجابة والشرح</small></h2>
+    <p class="pick-lbl">١. اختار الموضوع</p>
     <div class="filters" id="fTop">
       <button class="fchip on" data-k="all">كل المواضيع</button>
       ${Object.entries(TOPICS).map(([k, t]) => `<button class="fchip" data-k="${k}">${ic(t.icon)} ${t.name}</button>`).join('')}
     </div>
+    <p class="pick-lbl">٢. نوع الأسئلة</p>
+    <div class="filters" id="fType">
+      ${[['all', 'الكل'], ['mcq', 'اختيار من متعدد'], ['tf', 'صح ولا غلط'], ['essay', 'مقالي وتريسنج'], ['fill', 'أكمل الكود']].map(([k, t], i) => `<button class="fchip${i ? '' : ' on'}" data-k="${k}">${t}</button>`).join('')}
+    </div>
   </section>
-  <section class="card" id="tgenWrap"></section>
-  <div class="qgrid" id="qs"></div>`;
+  <section class="card" id="qs"></section>
+  <section class="card" id="tgenWrap"></section>`;
   let ft = 'all', fp = 'all';
-  const apply = () => renderQs($('#qs'), BANK.filter(q => (ft === 'all' || q.t === ft) && (fp === 'all' || q.top.includes(fp))));
+  const apply = () => quizDeck($('#qs'), BANK.filter(q => (ft === 'all' || q.t === ft) && (fp === 'all' || q.top.includes(fp))));
   const bind = (sel, set) => $$(sel + ' .fchip').forEach(b => b.onclick = () => { $$(sel + ' .fchip').forEach(x => x.classList.toggle('on', x === b)); set(b.dataset.k); apply(); });
   bind('#fType', k => ft = k); bind('#fTop', k => fp = k);
-  $('#resetQ').onclick = () => { SCORE.ok = SCORE.no = 0; $('#sOk').innerHTML = ic('check') + ' 0'; $('#sNo').innerHTML = ic('x') + ' 0'; apply(); };
   traceGen($('#tgenWrap'));
   apply();
 }
@@ -894,10 +1012,16 @@ function renderRace() {
 
 /* ================= GLOBAL ================= */
 document.addEventListener('keydown', e => {
-  if (!LAB || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if (/INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  const fwd = e.key === 'ArrowLeft', back = e.key === 'ArrowRight';
+  if (DECK && DECK.visible()) {
+    if (fwd || back) { e.preventDefault(); DECK.step(fwd ? 1 : -1); }
+    return;
+  }
+  if (!LAB || !$('#lab') || !$('#lab').offsetParent) return;
   if (e.code === 'Space') { e.preventDefault(); LAB.playing ? pause() : play(); }
-  if (e.key === 'ArrowRight') { e.preventDefault(); pause(); next(); }
-  if (e.key === 'ArrowLeft') { e.preventDefault(); pause(); go(LAB.idx - 1, false); }
+  if (fwd) { e.preventDefault(); pause(); next(); }
+  if (back) { e.preventDefault(); pause(); go(LAB.idx - 1, false); }
 });
 let rzT;
 window.addEventListener('resize', () => {

@@ -121,7 +121,7 @@ const BANK = [
   { t: 'tf', top: ['selection'], src: 'بنك الأسئلة', q: 'Selection Sort builds its sorted array by swapping adjacent items continuously in passes.', a: false, why: 'ده وصف Bubble. Selection بيختار الأصغر ويعمل swap واحدة في كل pass.' },
   { t: 'tf', top: ['insertion'], src: 'بنك الأسئلة', q: 'Insertion sort builds the final sorted array one element at a time from left to right.', a: true, why: 'صح من المحاضرة حرفياً.' },
   { t: 'tf', top: ['heap'], src: 'بنك الأسئلة', q: 'In a complete binary tree of size N stored in an array, the right child of node i is at 2i + 2.', a: true, why: 'right = 2i + 2.' },
-  { t: 'tf', top: ['heap'], src: 'بنك الأسئلة', q: 'The bottom-up Max-Heap construction starts from leaf nodes and heapifies upwards.', a: false, why: 'الأدق: بتبدأ من <b>آخر non-leaf node</b> (n/2 - 1) مش من الأوراق — الأوراق أصلاً heap لوحدها. (لو حسيتي إن المقصود "من تحت لفوق" عموماً اكتبي التبرير ده جنب إجابتك.)' },
+  { t: 'tf', top: ['heap'], src: 'بنك الأسئلة', q: 'The bottom-up Max-Heap construction starts from leaf nodes and heapifies upwards.', a: false, why: 'الأدق: بتبدأ من <b>آخر non-leaf node</b> (n/2 - 1) مش من الأوراق — الأوراق أصلاً heap لوحدها. (لو حسيت إن المقصود "من تحت لفوق" عموماً اكتب التبرير ده جنب إجابتك.)' },
   { t: 'tf', top: ['merge'], src: 'بنك الأسئلة', q: 'Merge sort is a divide-and-conquer algorithm that merges two sorted sub-lists into one.', a: true, why: 'Divide & Conquer + Merge.' },
   { t: 'tf', top: ['quick'], src: 'بنك الأسئلة', q: 'In Quick Sort, elements equal to or smaller than the pivot are placed in the right partition.', a: false, why: 'الأصغر بيروح <b>الشمال</b>. (في الكود الشرط <code>&lt;</code> فالمساوي بس هو اللي بيفضل يمين.)' },
 

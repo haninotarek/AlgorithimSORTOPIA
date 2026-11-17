@@ -39,6 +39,7 @@ const ICONS = {
   scale: '<path d="M12 3v17M7 21h10M4.5 7h15"/><path d="m4.5 7-3 6.5a3 3 0 0 0 6 0zM19.5 7l-3 6.5a3 3 0 0 0 6 0z"/>',
   cap: '<path d="M2 9.5 12 4.5l10 5-10 5z"/><path d="M6 11.5v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5M22 9.5v6"/>',
   'arrow-down': '<path d="M12 4v16M6 14l6 6 6-6"/>',
+  'chev-down': '<path d="m6 9 6 6 6-6"/>',
   'arrow-left': '<path d="M20 12H4M10 6l-6 6 6 6"/>',
   question: '<circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.9 2.6c-.7.3-1.2 1-1.2 1.8v.6"/><circle cx="12" cy="17.2" r=".9" fill="currentColor"/>',
   sigma: '<path d="M18 5H6.5l6 7-6 7H18"/>',
